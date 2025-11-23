@@ -41,79 +41,182 @@ Sample Output:
 Case #1
 30
 
+/*
+Given:
+
+Total inventory:
+
+D CPUs
+
+E memory chips
+
+F boards
+
+Scrap prices:
+
+each unused CPU → d
+
+each unused chip → e
+
+boards ka scrap price nahi diya → assume 0
+
+N configurations: for each i:
+
+needs: Di CPUs, Ei chips, Fi boards
+
+sells for: SPi
+
+Constraints:
+
+We can use at most 3 different configuration types.
+
+Types = distinct i indices.
+
+Ek type ko multiple times use kar sakte ho.
+
+Bachi hui inventory CPU/chip ko scrap price d/e pe bech sakte ho. Boards leftover waste.
+
+Goal: maximise total paisa:
+
+sum(SPi * (units of config i))  +  (leftover CPUs)*d + (leftover chips)*e
+
+
+where #distinct i with units>0 ≤ 3.
+
+🔑 Core idea (bilkul simple, no weird tricks)
+
+Direct DP f(c, h, b) jaisa tum pehle likh rahe the, sirf ek problem hai:
+
+Usme pata hi nahi chalega ki ab tak kitne different configs use ho chuke (1,2,3,4?)
+
+Sirf (c,h,b) se yeh info recover nahi ho sakti.
+
+Isko do tariko se handle kar sakte hain:
+
+DP with extra state mask of used config types (2^N) → 4D DP (thoda bada).
+
+Ya phir:
+
+Pehle hi choose kar lo kaun se config types use karne wale ho,
+
+Unke saath normal f(c,h,b) chalao.
+
+Aur kyunki N ≤ 8 aur max 3 types allowed:
+
+Total possible sets of types with size ≤3:
+
+C(8,1) + C(8,2) + C(8,3) = 8 + 28 + 56 = 92
+→ Yeh easily try ho sakte hain.
+
+So final approach:
+
+For each subset S of configs with |S|≤3,
+assume only these configs allowed,
+run DP f(c,h,b) that maximises revenue,
+take global maximum.
+
+Bas.
+*/
 
 Solution:
-
-#include<iostream>
-
+	
+#include <bits/stdc++.h>
 using namespace std;
 
-#define rep(i,a,n) for(int i =a; i < n; i++)
-#define repe(i,a,n) for(int i =a; i <= n; i++)
+const int MAXD = 100;
+const int MAXE = 100;
+const int MAXF = 100;
 
-int D,E,F,d,e;
-int config;
-int answer = 0;
+int Dtot, Etot, Ftot;    // total inventory
+long long priceCpu, priceChip;  // scrap prices
 
-struct configuration
-{
-    int D,E,F,SPi;
-};
-configuration m[9];
+int N;
+int cfgCpu[8], cfgChip[8], cfgBoard[8];
+long long cfgPrice[8];
 
-void solve(int index, int counta, int D, int E, int F, int cost )
-{
+// For current subset of configs we are testing:
+vector<int> activeConfigs;
 
-    if(index >= config || counta == 3)
-    {
-        cost += D*d + E*e;
-        if(cost > answer)
-            answer = cost;
-        return;
-    }
-    solve(index + 1, counta, D,E,F,cost);
+// DP arrays for memo:
+long long dp[MAXD + 1][MAXE + 1][MAXF + 1];
+bool vis[MAXD + 1][MAXE + 1][MAXF + 1];
 
-    int i = 1;
+long long solveMemo(int c, int h, int b) {
+    if (vis[c][h][b]) return dp[c][h][b];
+    vis[c][h][b] = true;
 
-    while(true)
-    {
-        if( D - m[index].D*i >= 0 && E - m[index].E*i >=0 && F - m[index].F*i >= 0 )
-        {
-            solve(index+1,counta+1,D- m[index].D *i,E - m[index].E *i,F- m[index].F*i, cost+ m[index].SPi * i);
-            ++i;
+    // Option 1: stop now, scrap all CPUs and chips
+    long long best = 1LL * c * priceCpu + 1LL * h * priceChip;
+
+    // Option 2: build one more PC of some allowed configuration
+    for (int idx = 0; idx < (int)activeConfigs.size(); idx++) {
+        int id = activeConfigs[idx];
+        int needC = cfgCpu[id];
+        int needH = cfgChip[id];
+        int needB = cfgBoard[id];
+
+        if (c >= needC && h >= needH && b >= needB) {
+            long long candidate =
+                cfgPrice[id] +
+                solveMemo(c - needC, h - needH, b - needB);
+            if (candidate > best) best = candidate;
         }
-        else
-        {
-            break;
-        }
     }
-    return;
 
+    dp[c][h][b] = best;
+    return best;
 }
 
-int main()
-{
-    int t;
-    cin >> t;
-    repe(_cases,1,t)
-    {
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
 
-        answer = 0;
-        cin >> D >> E >> F >> d >> e;
+    int T;
+    cin >> T;
+    for (int tc = 1; tc <= T; tc++) {
 
-        cin >> config;
+        cin >> Dtot >> Etot >> Ftot >> priceCpu >> priceChip;
+        cin >> N;
 
-        rep(i,0,config)
-        {
-            cin >> m[i].D >> m[i].E >> m[i].F >> m[i].SPi;
+        for (int i = 0; i < N; i++) {
+            cin >> cfgCpu[i] >> cfgChip[i] >> cfgBoard[i] >> cfgPrice[i];
         }
-        solve(0,0,D,E,F,0);
-        cout << "Case #"<<_cases << "\n" << answer <<"\n";
 
+        long long answer = 0;
+
+        // Try all subsets of configs with at most 3 different types
+        int totalMasks = 1 << N;
+        for (int mask = 0; mask < totalMasks; mask++) {
+            if (__builtin_popcount(mask) > 3) continue;
+
+            // Build list of config indices in this subset
+            activeConfigs.clear();
+            for (int i = 0; i < N; i++) {
+                if (mask & (1 << i)) {
+                    activeConfigs.push_back(i);
+                }
+            }
+
+            // Reset DP visited for this subset
+            for (int c = 0; c <= Dtot; c++) {
+                for (int h = 0; h <= Etot; h++) {
+                    for (int b = 0; b <= Ftot; b++) {
+                        vis[c][h][b] = false;
+                    }
+                }
+            }
+
+            long long cur = solveMemo(Dtot, Etot, Ftot);
+            if (cur > answer) answer = cur;
+        }
+
+        cout << "Case #" << tc << "\n";
+        cout << answer << "\n";
     }
 
     return 0;
 }
+
 ---------------------------------------------------------------------
 
 
