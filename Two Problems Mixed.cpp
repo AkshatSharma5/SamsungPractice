@@ -45,25 +45,15 @@ Case #1
 Given:
 
 Total inventory:
-
-D CPUs
-
-E memory chips
-
-F boards
+D CPUs, E memory chips, F boards
 
 Scrap prices:
-
 each unused CPU → d
-
 each unused chip → e
-
 boards ka scrap price nahi diya → assume 0
 
 N configurations: for each i:
-
 needs: Di CPUs, Ei chips, Fi boards
-
 sells for: SPi
 
 Constraints:
@@ -116,6 +106,41 @@ run DP f(c,h,b) that maximises revenue,
 take global maximum.
 
 Bas.
+
+
+For N=4, masks 0..15:
+
+mask = 0: {} (0 configs)
+
+mask = 1: {0}
+
+mask = 2: {1}
+
+mask = 3: {0,1}
+
+mask = 4: {2}
+
+mask = 5: {0,2}
+
+mask = 6: {1,2}
+
+mask = 7: {0,1,2}
+
+mask = 8: {3}
+
+mask = 9: {0,3}
+
+mask = 10:{1,3}
+
+mask = 11:{0,1,3}
+
+mask = 12:{2,3}
+
+mask = 13:{0,2,3}
+
+mask = 14:{1,2,3}
+
+mask = 15:{0,1,2,3} ❌ (popcount=4>3 → skip)
 */
 
 Solution:
